@@ -1,3 +1,7 @@
+/**  
+	threads.c
+*/
+
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -12,7 +16,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/fixed-point.h" 
- 
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -24,11 +28,11 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+static struct list ready_list;  // list of thread structs
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
-static struct list all_list;
+static struct list all_list;     // list of thread structs
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -60,7 +64,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
-
+real load_avg;
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -352,6 +356,9 @@ void
 thread_set_nice (int nice UNUSED) 
 {
   /* Not yet implemented. */
+  enum intr_level old_thread = intr_disable();
+  thread_current()->nice=nice;
+  
 }
 
 /* Returns the current thread's nice value. */
@@ -359,7 +366,7 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;  // retutn nice
 }
 
 /* Returns 100 times the system load average. */
@@ -367,7 +374,7 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return real_round(mul_real_int(load_avg,100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -375,9 +382,20 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return real_round(mul_real_int(thread_current()->recent_cpu,100)); //return recent
 }
-
+
+void
+thread_set_recent_cpu(struct thread *thr)
+{
+  // cpu=(2*load)/(2*load+1) *cpu +nice;
+  
+  real double_avg = mul_real_int(load_avg,2);
+  real rate = mul_real_real(div_real_real(double_avg,add_real_int(double_avg,1)),thr->recent_cpu);
+  thr->recent_cpu = add_real_int(rate,thr->nice);
+}
+
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -445,7 +463,8 @@ running_thread (void)
 static bool
 is_thread (struct thread *t)
 {
-  return t != NULL && t->magic == THREAD_MAGIC;
+  // magic is a uniqe member that defines the struct is of type thread .
+  return t != NULL && t->magic == THREAD_MAGIC;  
 }
 
 /* Does basic initialization of T as a blocked thread named
@@ -563,7 +582,7 @@ schedule (void)
   ASSERT (is_thread (next));
 
   if (cur != next)
-    prev = switch_threads (cur, next);
+    prev = switch_threads (cur, next);  // it's an assembly languauge routine in switch.S .
   thread_schedule_tail (prev);
 }
 
@@ -580,7 +599,8 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+

@@ -1,3 +1,7 @@
+/**
+	thread.h
+*/
+
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
@@ -5,6 +9,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "fixed-point.h" 
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -93,6 +98,13 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    /* advanced priority members */
+    int8_t nice;
+    real recent_cpu;
+
+    /* Time interrupt */ 
+    uint64_t wakeup_time;
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -139,3 +151,4 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 #endif /* threads/thread.h */
+
