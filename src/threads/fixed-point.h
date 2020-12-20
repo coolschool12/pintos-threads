@@ -8,7 +8,7 @@ typedef int real;
  
 #define int_to_real(n) ((real)(n * shift))
 #define real_truncate(n) (n / shift)
-#define real_round(n) (n>=0? (n+shift /2)/shift : (n-shift /2)/shift)
+#define real_round(n) (n>=0? ((n+ shift/2)/shift) : ((n- shift/2)/shift))
 
 #define add_real_real(x,y) (x+y)
 #define sub_real_real(x,y) (x-y)
