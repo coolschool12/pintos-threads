@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/compare.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -223,18 +224,6 @@ thread_block (void)
   schedule ();
 }
 
-/* Returns true if a has HIGHER priority than b. */
-bool priority_less (
-    const struct list_elem *a,
-    const struct list_elem *b,
-    void *aux UNUSED
-) {
-  const struct thread *a_thread = list_entry (a, struct thread, elem);
-  const struct thread *b_thread = list_entry (b, struct thread, elem);
-  
-  return a_thread->priority > b_thread->priority;
-}
-
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -253,7 +242,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 
-  list_insert_ordered(&ready_list, &t->elem, &priority_less, NULL);
+  list_insert_ordered(&ready_list, &t->elem, &priority_more, NULL);
   t->status = THREAD_READY;
 
   bool priority_comp = list_entry(
@@ -331,7 +320,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) {
-    list_insert_ordered(&ready_list, &cur->elem, &priority_less, NULL);
+    list_insert_ordered(&ready_list, &cur->elem, &priority_more, NULL);
   }
   cur->status = THREAD_READY;
   schedule ();
@@ -368,7 +357,30 @@ void thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+    struct thread *c = thread_current();
+    int max = c->priority;
+    if (!list_empty(&c->lock_list)) {
+        struct lock *lock = list_entry(list_max(&c->lock_list, priority_less_lock, NULL), struct lock, elem);
+        int lock_pri = sema_calculate_priority(&lock->semaphore);
+        if (lock_pri > max) {
+            max = lock_pri;
+        }
+    }
+    return max;
+}
+
+/* Returns t thread's priority. */
+int thread_get_priority_t (struct thread *t)
+{
+    int max = t->priority;
+    if (!list_empty(&t->lock_list)) {
+        struct lock *lock = list_entry(list_max(&t->lock_list, priority_less_lock, NULL), struct lock, elem);
+        int lock_pri = sema_calculate_priority(&lock->semaphore);
+        if (lock_pri > max) {
+            max = lock_pri;
+        }
+    }
+    return max;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -489,6 +501,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  list_init(&t->lock_list);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
