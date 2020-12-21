@@ -116,7 +116,7 @@ thread_start (void)
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
-  thread_create ("idle", PRI_MIN, idle, &idle_started);
+  thread_create ("idle", PRI_MAX, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -218,7 +218,9 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   /* Add to run queue. */
-  thread_unblock (t);
+  if (thread_unblock(t)) {
+    thread_yield();
+  }
 
   return tid;
 }
@@ -239,6 +241,17 @@ thread_block (void)
   schedule ();
 }
 
+bool priority_less (
+    const struct list_elem *a,
+    const struct list_elem *b,
+    void *aux UNUSED
+) {
+  const struct thread *a_thread = list_entry (a, struct thread, elem);
+  const struct thread *b_thread = list_entry (b, struct thread, elem);
+  
+  return a_thread->priority > b_thread->priority;
+}
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -247,7 +260,7 @@ thread_block (void)
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
-void
+bool
 thread_unblock (struct thread *t) 
 {
   enum intr_level old_level;
@@ -256,9 +269,17 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+
+  list_insert_ordered(&ready_list, &t->elem, &priority_less, NULL);
   t->status = THREAD_READY;
+
+  bool priority_comp = list_entry(
+        list_begin(&ready_list),
+        struct thread,
+        elem)->priority > running_thread()->priority;
+
   intr_set_level (old_level);
+  return priority_comp;
 }
 
 /* Returns the name of the running thread. */
@@ -326,8 +347,9 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread) {
+    list_insert_ordered(&ready_list, &cur->elem, &priority_less, NULL);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -351,10 +373,12 @@ thread_foreach (thread_action_func *func, void *aux)
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-void
-thread_set_priority (int new_priority) 
+void thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+    thread_current ()->priority = new_priority;
+    if (list_entry(list_begin(&ready_list), struct thread, elem)->priority > thread_current()->priority) {
+        thread_yield();
+    }
 }
 
 /* Returns the current thread's priority. */
@@ -430,7 +454,7 @@ idle (void *idle_started_ UNUSED)
   struct semaphore *idle_started = idle_started_;
   idle_thread = thread_current ();
   sema_up (idle_started);
-
+  idle_thread->priority = PRI_MIN; // Not using thread_set_priority();
   for (;;) 
     {
       /* Let someone else run. */
@@ -543,7 +567,7 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    return list_entry(list_pop_front(&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -634,7 +658,8 @@ void update_load_avg(){
   size_t ready_size = list_size (&ready_list);
   if(thread_current() != idle_thread )
     ready_size++;                     
-  real term = mul_real_int( div_real_int(load_avg,60),59);
+ // real term = mul_real_int( div_real_int(load_avg,60),59);
+    real term = div_real_int( mul_real_int(load_avg,59),60);
   load_avg = add_real_real(term,div_real_int(int_to_real(ready_size),60)); 
 }
 
@@ -665,22 +690,23 @@ void update_priority_mlfqs(struct thread *t){
 void
 incr_recent_cpu() {
   if(thread_current() != idle_thread ) {
-    enum intr_level state = intr_disable(); 
+    enum intr_level state = intr_disable();
     thread_current()->recent_cpu =  add_real_int(thread_current()->recent_cpu,1); 
     intr_set_level(state);
   }
   
-  int ticks =timer_ticks();
+  int ticks = timer_ticks();
   if( ticks % TIMER_FREQ == 0) {
     update_load_avg();
     enum intr_level old_state = intr_disable();
     thread_foreach(&thread_set_recent_cpu, NULL);
     intr_set_level(old_state);    
   }
-  if(ticks %4 ==0){
-    enum intr_level old_state = intr_disable();  
+
+  if(ticks % 4 == 0){
+    enum intr_level old_state = intr_disable();
     thread_foreach(&update_priority_mlfqs, NULL);
-    intr_set_level(old_state);        
+    intr_set_level(old_state);
   }
 }
 

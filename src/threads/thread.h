@@ -1,7 +1,3 @@
-/**
-	thread.h
-*/
-
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
@@ -100,7 +96,7 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     /* advanced priority members */
-    int nice;
+    int8_t nice;
     real recent_cpu;
 
     /* Time interrupt */ 
@@ -130,7 +126,7 @@ typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
-void thread_unblock (struct thread *);
+bool thread_unblock (struct thread *);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -150,5 +146,6 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+bool priority_less (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 #endif /* threads/thread.h */
