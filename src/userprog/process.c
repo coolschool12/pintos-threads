@@ -32,7 +32,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
-  char *f_name;
+  //char *f_name;
   tid_t tid;
   
   /* Make a copy of FILE_NAME.
@@ -42,14 +42,15 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /*
   char *save_ptr;
   f_name = malloc(strlen(file_name)+1);
   strlcpy (f_name, file_name, strlen(file_name)+1);
   f_name = strtok_r (f_name," ",&save_ptr);
+  */
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
-  free(f_name);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
       palloc_free_page (fn_copy);
   } else {
@@ -151,9 +152,10 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-
-    if(cur->exit_status==-100)
+  /*
+  if(cur->exit_status==-100)
       exit(-1);
+      */
 
   
   /* Destroy the current process's page directory and switch back
@@ -274,7 +276,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
-  lock_acquire(&lock);
+  //lock_acquire(&lock);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
@@ -386,7 +388,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
  done:
   /* We arrive here whether the load is successful or not. */
- lock_release(&lock);
+ //lock_release(&lock);
   return success;
 }
 

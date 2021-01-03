@@ -92,7 +92,7 @@ static void valid_pointer(void * ptr){
     if  (!is_user_vaddr (ptr) || pagedir_get_page(thread_current()->pagedir,ptr) == NULL){
         if(lock_held_by_current_thread(&lock))
             lock_release (&lock);
-        exit(-1);
+        exit_syscall(-1);
     }
 }
 
@@ -150,7 +150,7 @@ int sys_read(int fd, void *buffer, unsigned size){
         return i;
     }
     struct file * file = get_file(fd);
-    if(file == NULL) exit(-1);
+    if(file == NULL) exit_syscall(-1);
     lock_acquire(&lock);
     int sz = file_read(file,buffer,size);
     lock_release(&lock);
@@ -176,7 +176,7 @@ int sys_write(int fd,const void * buffer,unsigned size){
     else if(fd == 0)
         return 0;
     struct file * file = get_file(fd);
-    if(file == NULL) exit(-1);
+    if(file == NULL) exit_syscall(-1);
     lock_acquire(&lock);
     int sz = file_write(file,buffer,size);
     lock_release(&lock);
