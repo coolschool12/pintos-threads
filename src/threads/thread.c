@@ -545,6 +545,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->lock_list);
   t->priority_MLFQSschedular = priority;
   t->magic = THREAD_MAGIC;
+  t->number_of_files =2;
 
   /* inherit from the parent thread */
   if(t == initial_thread) {
