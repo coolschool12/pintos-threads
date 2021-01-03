@@ -68,7 +68,6 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  //printf("In start_process\n");
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -147,11 +146,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  /*
-  if(cur->exit_status==-100)
-      exit(-1);
-      */
-
+  if(!cur->sys_exit_called) {
+      sys_exit(-1);
+  }
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -263,7 +260,6 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-  //printf("In load\n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -287,9 +283,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
 
   file = filesys_open (fn_cp);
-
   free(fn_cp);
-  //TODO : Free fn_cp
   
   if (file == NULL) 
     {
