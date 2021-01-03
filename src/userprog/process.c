@@ -40,8 +40,12 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+  if (tid == TID_ERROR) {
+      palloc_free_page (fn_copy);
+  } else {
+      sema_down(&thread_current()->wait_on_parent);
+  }
+
   return tid;
 }
 
@@ -54,6 +58,10 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //
+  // Handle command line arguments.
+  //
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -63,8 +71,26 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  if (!success) {
+      sema_up(&thread_current()->wait_on_parent);
+      thread_exit ();
+  }
+
+  //
+  // Deny writes to executable.
+  //
+
+  struct thread *current = thread_current();
+  if (current->parent) {
+      struct child_process c;
+      c.pid = current->tid;
+      c.t = current;
+
+      list_push_back(&current->parent->children, &c.elem);
+
+      sema_up(&current->parent->wait_on_parent);
+      sema_down(&current->wait_on_parent);
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -88,7 +114,18 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+    struct thread *current = thread_current();
+    struct child_process *c = remove_child(&current->children, child_tid);
+    if (!c) {
+        return -1;
+    }
+
+    current->waiting_on = c->pid;
+
+    sema_up(&c->t->wait_on_parent);
+    sema_down(&current->wait_child);
+
+    return current->child_status;
 }
 
 /* Free the current process's resources. */
@@ -462,4 +499,16 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+struct child_process *remove_child(struct list *children, tid_t child_tid)
+{
+    for (struct list_elem *e = list_begin(children); e != list_end(children); e = list_next(e)) {
+        struct child_process *c = list_entry (e, struct child_process, elem);
+        if (c->pid == child_tid) {
+            list_remove(e);
+            return c;
+        }
+    }
+    return NULL;
 }
