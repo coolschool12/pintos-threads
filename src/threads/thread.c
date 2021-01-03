@@ -468,6 +468,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->number_of_files =2;
+  t->sys_exit_called = false;
   sema_init(&t->wait_on_parent, 0);
   sema_init(&t->wait_child, 0);
   list_init(&t->children);

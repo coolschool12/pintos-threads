@@ -104,6 +104,8 @@ struct thread
     int child_status;
     bool child_creation_success;
 
+    bool sys_exit_called;
+
     /* Time interrupt */ 
     uint64_t wakeup_time;
 
