@@ -13,6 +13,7 @@
 #include "filesys/filesys.h"
 #include "threads/flags.h"
 #include "threads/init.h"
+#include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
@@ -32,7 +33,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
-  //char *f_name;
+  char *f_name;
   tid_t tid;
   
   /* Make a copy of FILE_NAME.
@@ -42,15 +43,13 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  /*
   char *save_ptr;
   f_name = malloc(strlen(file_name)+1);
   strlcpy (f_name, file_name, strlen(file_name)+1);
   f_name = strtok_r (f_name," ",&save_ptr);
-  */
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
       palloc_free_page (fn_copy);
   } else {
@@ -73,10 +72,6 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
-  //
-  // Handle command line arguments.
-  //
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);

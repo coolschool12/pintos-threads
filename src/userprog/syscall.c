@@ -19,7 +19,11 @@
 
 static void syscall_handler (struct intr_frame *);
 
-void exit (int status);
+
+void sys_halt(void);
+void sys_exit(int status);
+pid_t sys_exec(const char *cmd_line);
+int sys_wait(pid_t pid);
 bool sys_create(const char * file,unsigned initial_size);
 bool sys_remove (const char * file);
 int  sys_open(const char *file);
@@ -31,7 +35,10 @@ unsigned sys_tell(int fd);
 void sys_close(int fd);
 
 static void valid_pointer(void * ptr);
+int get_fd_f(struct file * file);
+void remove(int fd);
 struct file * get_file(int fd);
+
 static struct lock lock;
 
 void
@@ -48,17 +55,20 @@ syscall_handler (struct intr_frame *f UNUSED)
   thread_exit ();
 }
 
-void halt_syscall(void)
+void sys_halt(void)
 {
     shutdown_power_off();
 }
 
-void exit_syscall(int status)
+void sys_exit(int status)
 {
-    //
-    // Release resources
-    //
     struct thread *current = thread_current();
+    struct list des = current->file_descriptors;
+    for (struct list_elem *e = list_begin(&des); e != list_end(&des); e = list_next(e)) {
+        struct file_descriptor *d = list_entry (e, struct file_descriptor, elem);
+        sys_close(d->fd);
+    }
+
     if (current->parent->waiting_on == current->tid) {
         current->parent->child_status = status;
         current->parent->waiting_on = -1;
@@ -77,13 +87,13 @@ void exit_syscall(int status)
     thread_exit();
 }
 
-pid_t exec_syscall(const char *cmd_line)
+pid_t sys_exec(const char *cmd_line)
 {
     // verify cmd_line.
     return (pid_t) process_execute(cmd_line);
 }
 
-int wait_syscall(pid_t pid)
+int sys_wait(pid_t pid)
 {
     return process_wait((tid_t) pid);
 }
@@ -92,7 +102,7 @@ static void valid_pointer(void * ptr){
     if  (!is_user_vaddr (ptr) || pagedir_get_page(thread_current()->pagedir,ptr) == NULL){
         if(lock_held_by_current_thread(&lock))
             lock_release (&lock);
-        exit_syscall(-1);
+        sys_exit(-1);
     }
 }
 
@@ -150,7 +160,7 @@ int sys_read(int fd, void *buffer, unsigned size){
         return i;
     }
     struct file * file = get_file(fd);
-    if(file == NULL) exit_syscall(-1);
+    if(file == NULL) sys_exit(-1);
     lock_acquire(&lock);
     int sz = file_read(file,buffer,size);
     lock_release(&lock);
@@ -176,7 +186,7 @@ int sys_write(int fd,const void * buffer,unsigned size){
     else if(fd == 0)
         return 0;
     struct file * file = get_file(fd);
-    if(file == NULL) exit_syscall(-1);
+    if(file == NULL) sys_exit(-1);
     lock_acquire(&lock);
     int sz = file_write(file,buffer,size);
     lock_release(&lock);
@@ -233,13 +243,14 @@ void remove(int fd) {
         }
     }
 }
-    struct file * get_file(int fd) {
-        struct list * files = thread_current()->thread_files;
-        for (struct list_elem * elem_x = list_begin(files); elem_x != list_end(files); elem_x = list_next(files)) {
-            struct file_descriptor * des = list_entry(elem_x, struct file_descriptor, elem) ;
-            if(des->fd == fd)
-                return des->file_itself;
-        }
-        return NULL;
+
+struct file * get_file(int fd) {
+    struct list * files = thread_current()->thread_files;
+    for (struct list_elem * elem_x = list_begin(files); elem_x != list_end(files); elem_x = list_next(files)) {
+        struct file_descriptor * des = list_entry(elem_x, struct file_descriptor, elem) ;
+        if(des->fd == fd)
+            return des->file_itself;
     }
+    return NULL;
+}
 
