@@ -90,27 +90,29 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     struct list * thread_files;
 
+    struct list children;               /* Child process. */
+    struct thread *parent;              /* Parent thread. */
+    struct semaphore wait_on_parent;    /* Synchronization with child. */
+
+    struct semaphore wait_child;
+    tid_t waiting_on;
+    int child_status;
+    bool child_creation_success;
+
     /* Time interrupt */ 
     uint64_t wakeup_time;
 
-    /* exit and wait */
-    bool success;
-    int exit_status;
-    struct list children;
-    struct thread* parent;
-    struct semaphore child_lock;
-    int waiting_on;
- 
     /* for user program (files). */
     struct file *self;
     struct list file_descriptors;
     int fd;
+
+    struct list_elem allelem;           /* List element for all threads list. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
