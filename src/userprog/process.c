@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "userprog/syscall.h"
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -33,7 +34,6 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
-  char *f_name;
   tid_t tid;
   
   /* Make a copy of FILE_NAME.
@@ -43,13 +43,8 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  char *save_ptr;
-  f_name = malloc(strlen(file_name)+1);
-  strlcpy (f_name, file_name, strlen(file_name)+1);
-  f_name = strtok_r (f_name," ",&save_ptr);
-
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
       palloc_free_page (fn_copy);
   } else {
@@ -275,15 +270,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   
   /* Open executable file. */
-
+  /*
   char * fn_cp = malloc (strlen(file_name)+1);
   strlcpy(fn_cp, file_name, strlen(file_name)+1);
   
   char * save_ptr;
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
-
-  file = filesys_open (fn_cp);
-  free(fn_cp);
+  */
+  file = filesys_open (file_name);
   
   if (file == NULL) 
     {
@@ -372,7 +366,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
   file_deny_write(file);
-
   thread_current()->self = file;
   
  done:
@@ -504,6 +497,7 @@ setup_stack (void **esp, char * file_name)
         palloc_free_page (kpage);
     }
 
+  /*
   char *token, *save_ptr;
   int argc = 0,i;
 
@@ -557,6 +551,7 @@ setup_stack (void **esp, char * file_name)
 
   free(copy);
   free(argv);
+  */
 
   return success;
 }
