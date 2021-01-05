@@ -22,6 +22,8 @@ static void syscall_handler (struct intr_frame *);
 static void valid_pointer(void * ptr);
 struct file * get_file(int fd);
 static struct lock lock;
+int get_fd_f(struct file * file);
+void remove(int fd);
 
 void
 syscall_init (void) 
@@ -123,9 +125,9 @@ void sys_exit(int status)
 {
     struct thread *current = thread_current();
 
-    current->sys_exit_called = true;
     /*
-    struct list des = current->file_descriptors;
+    current->sys_exit_called = true;
+    struct list des = current->thread_files;
     if (!list_empty(&des)) {
         for (struct list_elem *e = list_begin(&des); e != list_end(&des); e = list_next(e)) {
             struct file_descriptor *d = list_entry (e, struct file_descriptor, elem);
@@ -156,8 +158,14 @@ void sys_exit(int status)
 
 pid_t sys_exec(const char *cmd_line)
 {
-    // verify cmd_line.
-    return (pid_t) process_execute(cmd_line);
+    if(cmd_line == NULL) sys_exit(-1);
+    valid_pointer((void *) cmd_line);
+
+    /* start excuting the process */
+    lock_acquire(&lock);
+    pid_t pid = (pid_t) process_execute(cmd_line);
+    lock_release(&lock);
+    return pid;
 }
 
 int sys_wait(pid_t pid)
@@ -193,7 +201,7 @@ bool sys_remove(const char * file) {
     return sucess;
 }
 
-int  sys_open(const char *file) {
+int sys_open(const char *file) {
     ASSERT(file != NULL);
     void * v = (void *)file;
     valid_pointer(v);
@@ -209,7 +217,7 @@ int get_fd_f(struct file * file) {
     struct file_descriptor * des = malloc(sizeof(struct file_descriptor));
     des->file_itself = file;
     des->fd = crt->number_of_files++;
-    list_push_back(crt->thread_files, &des->elem);
+    list_push_back(&crt->thread_files, &des->elem);
     return des->fd;
 }
 
@@ -299,8 +307,8 @@ void sys_close(int fd) {
 }
 
 void remove(int fd) {
-    struct list *files = thread_current()->thread_files;
-    for (struct list_elem *elem_x = list_begin(files); elem_x != list_end(files); elem_x = list_next(files)) {
+    struct list *files = &thread_current()->thread_files;
+    for (struct list_elem *elem_x = list_begin(files); elem_x != list_end(files); elem_x = list_next(elem_x)) {
         struct file_descriptor *des = list_entry(elem_x,
         struct file_descriptor, elem);
         if (des->fd == fd) {
@@ -311,8 +319,8 @@ void remove(int fd) {
     }
 }
 struct file * get_file(int fd) {
-    struct list * files = thread_current()->thread_files;
-    for (struct list_elem * elem_x = list_begin(files); elem_x != list_end(files); elem_x = list_next(files)) {
+    struct list * files = &thread_current()->thread_files;
+    for (struct list_elem * elem_x = list_begin(files); elem_x != list_end(files); elem_x = list_next(elem_x)) {
         struct file_descriptor * des = list_entry(elem_x, struct file_descriptor, elem) ;
         if(des->fd == fd)
             return des->file_itself;

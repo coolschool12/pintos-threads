@@ -34,6 +34,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+  char *f_name;
   tid_t tid;
   
   /* Make a copy of FILE_NAME.
@@ -42,9 +43,14 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+ 
+  char *save_ptr;
+  f_name = malloc(strlen(file_name)+1);
+  strlcpy (f_name, file_name, strlen(file_name)+1);
+  f_name = strtok_r (f_name," ",&save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
       palloc_free_page (fn_copy);
   } else {
@@ -270,15 +276,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   
   /* Open executable file. */
-  /*
   char * fn_cp = malloc (strlen(file_name)+1);
   strlcpy(fn_cp, file_name, strlen(file_name)+1);
   
   char * save_ptr;
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
-  */
-  file = filesys_open (file_name);
-  
+  file = filesys_open (fn_cp);
+  free(fn_cp);
+  //file = filesys_open (file_name); 
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -488,16 +494,15 @@ setup_stack (void **esp, char * file_name)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
+  if (kpage != NULL) {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
-    }
+      if (success) {
+          *esp = PHYS_BASE;
+      } else {
+          palloc_free_page (kpage);
+      }
+  }
 
-  /*
   char *token, *save_ptr;
   int argc = 0,i;
 
@@ -551,7 +556,6 @@ setup_stack (void **esp, char * file_name)
 
   free(copy);
   free(argv);
-  */
 
   return success;
 }

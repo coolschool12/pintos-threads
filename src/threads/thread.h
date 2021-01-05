@@ -93,7 +93,7 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    struct list * thread_files;
+    struct list thread_files;
 
     struct list children;               /* Child process. */
     struct thread *parent;              /* Parent thread. */
