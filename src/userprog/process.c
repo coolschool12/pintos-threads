@@ -85,8 +85,8 @@ start_process (void *file_name_)
 
   thread_current()->parent->child_creation_success = success;
   if (!success) {
-      sema_up(&thread_current()->wait_on_parent);
-      thread_exit ();
+      sema_up(&thread_current()->parent->wait_on_parent);
+      sys_exit(-1);
   }
 
   //
@@ -286,10 +286,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //file = filesys_open (file_name); 
 
   if (file == NULL) 
-    {
+  {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
-    }
+  }
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr

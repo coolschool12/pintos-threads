@@ -124,9 +124,9 @@ void sys_halt(void)
 void sys_exit(int status)
 {
     struct thread *current = thread_current();
+    current->sys_exit_called = true;
 
     /*
-    current->sys_exit_called = true;
     struct list des = current->thread_files;
     if (!list_empty(&des)) {
         for (struct list_elem *e = list_begin(&des); e != list_end(&des); e = list_next(e)) {
@@ -182,7 +182,7 @@ static void valid_pointer(void * ptr){
 }
 
 bool sys_create(const char * file, unsigned initial_size) {
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     void * v = (void *)file;
     valid_pointer(v);
     lock_acquire(&lock);
@@ -192,7 +192,7 @@ bool sys_create(const char * file, unsigned initial_size) {
 }
 
 bool sys_remove(const char * file) {
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     void * v = (void *)file;
     valid_pointer(v);
     lock_acquire(&lock);
@@ -202,7 +202,7 @@ bool sys_remove(const char * file) {
 }
 
 int sys_open(const char *file) {
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     void * v = (void *)file;
     valid_pointer(v);
     lock_acquire(&lock);
@@ -222,7 +222,7 @@ int get_fd_f(struct file * file) {
 }
 
 int sys_read(int fd, void *buffer, unsigned size){
-    ASSERT(buffer != NULL);
+    if(buffer == NULL) sys_exit(-1);
     void * v = (void *)buffer;
     valid_pointer(v);
     if(fd == 0){
@@ -243,7 +243,7 @@ int sys_read(int fd, void *buffer, unsigned size){
 }
 
 int sys_write(int fd,const void * buffer,unsigned size){
-    ASSERT(buffer != NULL);
+    if(buffer == NULL) sys_exit(-1);
     void * v = (void *)buffer;
     valid_pointer(v);
     if(fd == 1){
@@ -271,7 +271,7 @@ int sys_write(int fd,const void * buffer,unsigned size){
 
 int sys_filesize(int fd) {
     struct file * file = get_file(fd);
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     lock_acquire(&lock);
     int op = (int32_t) file_length(file);  // u can find it in file.h in filesys directory
     lock_release(&lock);
@@ -280,7 +280,7 @@ int sys_filesize(int fd) {
 
 void sys_seek(int fd, unsigned position) {
     struct file * file = get_file(fd);
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     lock_acquire(&lock);
     file_seek(file,position);  // u can find it in file.h in filesys directory
     lock_release(&lock);
@@ -289,7 +289,7 @@ void sys_seek(int fd, unsigned position) {
 
 unsigned sys_tell(int fd) {
     struct file * file = get_file(fd);
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     lock_acquire(&lock);
     uint32_t position = file_tell(file);  // u can find it in file.h in filesys directory
     lock_release(&lock);
@@ -299,7 +299,7 @@ unsigned sys_tell(int fd) {
 //finished
 void sys_close(int fd) {
     struct file * file = get_file(fd);
-    ASSERT(file != NULL);
+    if(file == NULL) sys_exit(-1);
     lock_acquire(&lock);
     file_close(file);
     remove(fd);
